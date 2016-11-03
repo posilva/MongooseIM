@@ -17,7 +17,8 @@
          encode_compact_uuid/2,
          decode_compact_uuid/1,
          mess_id_to_external_binary/1,
-         external_binary_to_mess_id/1]).
+         external_binary_to_mess_id/1,
+         wrapper_id/0]).
 
 %% XML
 -export([is_archived_elem_for/2,
@@ -31,6 +32,7 @@
          get_one_of_path/3,
          is_complete_message/3,
          wrap_message/6,
+         wrap_message/7,
          result_set/4,
          result_query/2,
          result_prefs/4,
@@ -338,11 +340,16 @@ is_valid_message_children(_,      _,    _,     _    ) -> false.
                    MessageUID :: term(), DateTime :: calendar:datetime(),
                    SrcJID :: ejabberd:jid()) -> Wrapper :: jlib:xmlel().
 wrap_message(MamNs, Packet, QueryID, MessageUID, DateTime, SrcJID) ->
-    #xmlel{
-        name = <<"message">>,
-        attrs = [],
-        children = [result(MamNs, QueryID, MessageUID,
-                           [forwarded(Packet, DateTime, SrcJID)])]}.
+    wrap_message(MamNs, Packet, QueryID, MessageUID, wrapper_id(), DateTime, SrcJID).
+
+-spec wrap_message(MamNs :: binary(), Packet :: jlib:xmlel(), QueryID :: binary(),
+                   MessageUID :: term(), WrapperI :: binary(), DateTime :: calendar:datetime(),
+                   SrcJID :: ejabberd:jid()) -> Wrapper :: jlib:xmlel().
+wrap_message(MamNs, Packet, QueryID, MessageUID, WrapperID, DateTime, SrcJID) ->
+    #xmlel{ name = <<"message">>,
+            attrs = [{<<"id">>, WrapperID}],
+            children = [result(MamNs, QueryID, MessageUID,
+                               [forwarded(Packet, DateTime, SrcJID)])] }.
 
 -spec forwarded(jlib:xmlel(), calendar:datetime(), ejabberd:jid())
             -> jlib:xmlel().
@@ -885,3 +892,7 @@ success_sql_query(Host, Query) ->
             Result
     end.
 
+%% @doc Returns a UUIDv4 canonical form binary.
+-spec wrapper_id() -> binary().
+wrapper_id() ->
+    iolist_to_binary(uuid:uuid_to_string(uuid:get_v4())).
