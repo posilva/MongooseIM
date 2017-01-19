@@ -40,7 +40,8 @@ all() ->
     [{group, c2s_noproc}, %% should be first, uses vanilla config
      {group, starttls},
      {group, feature_order},
-     {group, tls}
+     {group, tls},
+     {group, bind_2_0}
     ].
 
 groups() ->
@@ -60,7 +61,9 @@ groups() ->
                                   tls_compression_authenticate_fail,
                                   tls_authenticate_compression,
                                   auth_compression_bind_session,
-                                  auth_bind_compression_session]}
+                                  auth_bind_compression_session]},
+     {bind_2_0, [parellel], [bind_2_0_succeeds,
+                             client_with_bind_2_0_receives_messages]}
     ].
 
 test_cases() ->
@@ -97,8 +100,6 @@ end_per_suite(Config) ->
     restore_ejabberd_node(Config),
     escalus:end_per_suite(Config).
 
-init_per_group(c2s_noproc, Config) ->
-    Config;
 init_per_group(starttls, Config) ->
     config_ejabberd_node_tls(Config,
                              fun mk_value_for_starttls_required_config_pattern/0),
@@ -119,8 +120,7 @@ init_per_group(feature_order, Config) ->
     Config;
 init_per_group(_, Config) ->
     Config.
-end_per_group(feature_order, Config) ->
-    Config;
+
 end_per_group(_, Config) ->
     Config.
 
@@ -470,9 +470,29 @@ auth_bind_compression_session(Config) ->
     Compress = Conn#client.compress,
     ?assert(false =/= Compress).
 
+bind_2_0_succeeds(Config) ->
+    {ok, Conn, _, _} = connect_with_bind_2_0(Config, alice),
+    escalus_connection:stop(Conn).
+
+client_with_bind_2_0_receives_messages(Config) ->
+    {ok, Conn, _, _} = connect_with_bind_2_0(Config, alice),
+    BobSpec = given_fresh_spec(Config, ?SECURE_USER),
+    {ok, Bob, _, _} = escalus_connection:start(BobSpec),
+    Msg = <<"Hi Alice!">>,
+    escalus:send(Bob, escalus_stanza:chat_to(Conn, Msg)),
+    RecvStanza = escalus:wait_for_stanza(Conn),
+    escalus:assert(is_chat_message, [Msg], RecvStanza),
+    escalus_connection:stop(Bob),
+    escalus_connection:stop(Conn).
+
 %%--------------------------------------------------------------------
 %% Internal functions
 %%--------------------------------------------------------------------
+
+connect_with_bind_2_0(Config, User) ->
+    UserSpec = given_fresh_spec(Config, User),
+    ConnectionSteps = [start_stream, stream_features, authenticate, bind_2_0],
+    escalus_connection:start(UserSpec, ConnectionSteps).
 
 c2s_port(Config) ->
     case ?config(c2s_port, Config) of
