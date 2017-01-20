@@ -829,35 +829,35 @@ do_open_session(El, JID, StateData) ->
     do_open_session_common(JID, NStateData).
 
 do_open_session_common(JID, #state{user = U, resource = R} = NewStateData0) ->
-                    change_shaper(NewStateData0, JID),
-                    {Fs, Ts, Pending} = ejabberd_hooks:run_fold(
-                                          roster_get_subscription_lists,
-                                          NewStateData0#state.server,
-                                          {[], [], []},
-                                          [U, NewStateData0#state.server]),
-                    LJID = jid:to_lower(jid:to_bare(JID)),
-                    Fs1 = [LJID | Fs],
-                    Ts1 = [LJID | Ts],
-                    PrivList =
-                    ejabberd_hooks:run_fold(
-                      privacy_get_user_list, NewStateData0#state.server,
-                      #userlist{},
-                      [U, NewStateData0#state.server]),
-                    SID = {p1_time_compat:timestamp(), self()},
-                    Conn = get_conn_type(NewStateData0),
-                    Info = [{ip, NewStateData0#state.ip}, {conn, Conn},
-                            {auth_module, NewStateData0#state.auth_module}],
-                    ejabberd_sm:open_session(
-                      SID, U, NewStateData0#state.server, R, Info),
-                    NewStateData =
-                    NewStateData0#state{
-                      sid = SID,
-                      conn = Conn,
-                      pres_f = gb_sets:from_list(Fs1),
-                      pres_t = gb_sets:from_list(Ts1),
-                      pending_invitations = Pending,
-                      privacy_list = PrivList},
-                    fsm_next_state_pack(session_established,
+    change_shaper(NewStateData0, JID),
+    {Fs, Ts, Pending} = ejabberd_hooks:run_fold(
+                          roster_get_subscription_lists,
+                          NewStateData0#state.server,
+                          {[], [], []},
+                          [U, NewStateData0#state.server]),
+    LJID = jid:to_lower(jid:to_bare(JID)),
+    Fs1 = [LJID | Fs],
+    Ts1 = [LJID | Ts],
+    PrivList =
+    ejabberd_hooks:run_fold(
+      privacy_get_user_list, NewStateData0#state.server,
+      #userlist{},
+      [U, NewStateData0#state.server]),
+    SID = {p1_time_compat:timestamp(), self()},
+    Conn = get_conn_type(NewStateData0),
+    Info = [{ip, NewStateData0#state.ip}, {conn, Conn},
+            {auth_module, NewStateData0#state.auth_module}],
+    ejabberd_sm:open_session(
+      SID, U, NewStateData0#state.server, R, Info),
+    NewStateData =
+    NewStateData0#state{
+      sid = SID,
+      conn = Conn,
+      pres_f = gb_sets:from_list(Fs1),
+      pres_t = gb_sets:from_list(Ts1),
+      pending_invitations = Pending,
+      privacy_list = PrivList},
+    fsm_next_state_pack(session_established,
                         NewStateData).
 
 -spec session_established(Item :: ejabberd:xml_stream_item(),
