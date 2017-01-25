@@ -116,7 +116,7 @@ dirty_disconnect(Config) ->
     {Component, _, _} = connect_component(CompOpts),
     escalus_connection:kill(Component),
     {Component1, _, _} = connect_component(CompOpts),
-    ok = escalus_connection:stop(Component1).
+    disconnect_component(Component1).
 
 register_one_component(Config) ->
     %% Given one connected component
@@ -141,7 +141,7 @@ register_one_component(Config) ->
                 escalus:assert(is_stanza_from, [ComponentAddr], Reply2)
         end),
 
-    ok = escalus_connection:stop(Component).
+    disconnect_component(Component).
 
 register_two_components(Config) ->
     %% Given two connected components
@@ -182,8 +182,8 @@ register_two_components(Config) ->
                 escalus:assert(is_chat_message, [<<"jkl">>], Reply4)
         end),
 
-    ok = escalus_connection:stop(Comp1),
-    ok = escalus_connection:stop(Comp2).
+    disconnect_component(Comp1),
+    disconnect_component(Comp2).
 
 try_registering_with_wrong_password(Config) ->
     %% Given a component with a wrong password
@@ -193,9 +193,9 @@ try_registering_with_wrong_password(Config) ->
     try
         %% When trying to connect it
         {Comp, _Addr, _} = connect_component(CompOpts2),
-        ok = escalus_connection:stop(Comp),
+        disconnect_component(Comp),
         ct:fail("component connected successfully with wrong password")
-    catch {stream_error, E} ->
+    catch {stream_error, _E} ->
         %% Then it should fail to do so
         ok
     end.
@@ -208,14 +208,14 @@ try_registering_component_twice(Config) ->
     try
         %% When trying to connect the second one
         {Comp2, Addr, _} = connect_component(CompOpts1),
-        ok = escalus_connection:stop(Comp2),
+        disconnect_component(Comp2),
         ct:fail("second component connected successfully")
     catch {stream_error, _} ->
         %% Then it should fail to do so
         ok
     end,
 
-    ok = escalus_connection:stop(Comp1).
+    disconnect_component(Comp1).
 
 try_registering_existing_host(Config) ->
     %% Given a external vjud component
@@ -224,7 +224,7 @@ try_registering_existing_host(Config) ->
     try
         %% When trying to connect it to the server
         {Comp, _Addr, _} = connect_component(Component),
-        ok = escalus_connection:stop(Comp),
+        disconnect_component(Comp),
         ct:fail("vjud component connected successfully")
     catch {stream_error, _} ->
         %% Then it should fail since vjud service already exists on the server
@@ -250,8 +250,8 @@ disco_components(Config) ->
                 escalus:assert(has_service, [Addr2], DiscoReply)
         end),
 
-    ok = escalus_connection:stop(Comp1),
-    ok = escalus_connection:stop(Comp2).
+    disconnect_component(Comp1),
+    disconnect_component(Comp2).
 
 register_subdomain(Config) ->
     %% Given one connected component
@@ -282,7 +282,7 @@ register_subdomain(Config) ->
 
         end),
 
-    ok = escalus_connection:stop(Comp).
+    disconnect_component(Comp).
 
 
 register_in_cluster(Config) ->
@@ -303,9 +303,9 @@ register_in_cluster(Config) ->
                 do_chat_with_component(Alice, ClusterGuy, Component_on_2)
         end),
 
-    ok = escalus_connection:stop(Comp1),
-    ok = escalus_connection:stop(Comp2),
-    ok = escalus_connection:stop(Comp_on_2),
+    disconnect_component(Comp1),
+    disconnect_component(Comp2),
+    disconnect_component(Comp_on_2),
     ok.
 
 do_chat_with_component(Alice, ClusterGuy, Component1) ->
@@ -429,8 +429,8 @@ register_same_on_both(Config) ->
         escalus:assert(has_service, [Addr], DiscoReply2)
 
     end),
-    ok = escalus_connection:stop(Comp2),
-    ok = escalus_connection:stop(Comp_d),
+    disconnect_component(Comp2),
+    disconnect_component(Comp_d),
     ok.
 
 %%--------------------------------------------------------------------
@@ -452,7 +452,7 @@ connect_component(ComponentOpts, StartStep) ->
                                    [{?MODULE, StartStep},
                                     {?MODULE, component_handshake}]),
     case Res of
-    {ok, Component, _, _} ->
+    {ok, Component, _} ->
         {component, ComponentName} = lists:keyfind(component, 1, ComponentOpts),
         {host, ComponentHost} = lists:keyfind(host, 1, ComponentOpts),
         ComponentAddr = <<ComponentName/binary, ".", ComponentHost/binary>>,
@@ -461,9 +461,13 @@ connect_component(ComponentOpts, StartStep) ->
         throw(cook_connection_step_error(E))
     end.
 
+disconnect_component(Component) ->
+    %% TODO replace 'kill' with 'stop' when server supports stream closing
+    escalus_connection:kill(Component).
+
 cook_connection_step_error(E) ->
     {connection_step_failed, Step, Reason} = E,
-    {StepDef, _, _, _} = Step,
+    {StepDef, _, _} = Step,
     {EDef, _} = Reason,
     {EDef, StepDef}.
 
@@ -484,7 +488,7 @@ restore_domain(Config) ->
 %%--------------------------------------------------------------------
 %% Escalus connection steps
 %%--------------------------------------------------------------------
-component_start_stream(Conn, Props, []) ->
+component_start_stream(Conn = #client{props = Props}, []) ->
     {server, Server} = lists:keyfind(server, 1, Props),
     {component, Component} = lists:keyfind(component, 1, Props),
 
@@ -496,9 +500,9 @@ component_start_stream(Conn, Props, []) ->
     #xmlstreamstart{attrs = Attrs} = StreamStartRep,
     Id = proplists:get_value(<<"id">>, Attrs),
 
-    {Conn, [{sid, Id}|Props], []}.
+    {Conn#client{props = [{sid, Id}|Props]}, []}.
 
-component_start_stream_subdomain(Conn, Props, []) ->
+component_start_stream_subdomain(Conn = #client{props = Props}, []) ->
     {component, Component} = lists:keyfind(component, 1, Props),
 
     StreamStart = component_stream_start(Component, true),
@@ -508,19 +512,19 @@ component_start_stream_subdomain(Conn, Props, []) ->
     #xmlstreamstart{attrs = Attrs} = StreamStartRep,
     Id = proplists:get_value(<<"id">>, Attrs),
 
-    {Conn, [{sid, Id}|Props], []}.
+    {Conn#client{props = [{sid, Id}|Props]}, []}.
 
-component_handshake(Conn, Props, []) ->
+component_handshake(Conn = #client{props = Props}, []) ->
     {password, Password} = lists:keyfind(password, 1, Props),
     {sid, SID} = lists:keyfind(sid, 1, Props),
 
-    Handshake = component_handshake(SID, Password),
+    Handshake = component_handshake_el(SID, Password),
     ok = escalus_connection:send(Conn, Handshake),
 
     HandshakeRep = escalus_connection:get_stanza(Conn, handshake),
     case HandshakeRep of
         #xmlel{name = <<"handshake">>, children = []} ->
-            {Conn, Props, []};
+            {Conn, []};
         #xmlel{name = <<"stream:error">>} ->
             throw({stream_error, HandshakeRep})
     end.
@@ -542,7 +546,7 @@ component_stream_start(Component, IsSubdomain) ->
     end,
     #xmlstreamstart{name = <<"stream:stream">>, attrs = Attrs2}.
 
-component_handshake(SID, Password) ->
+component_handshake_el(SID, Password) ->
     Handshake = crypto:hash(sha, <<SID/binary, Password/binary>>),
     #xmlel{name = <<"handshake">>,
            children = [#xmlcdata{content = base16:encode(Handshake)}]}.
@@ -573,7 +577,7 @@ name(vjud_component) ->
 common(Config) ->
     common(Config, 8888).
 
-common(Config, Port) ->
+common(_Config, Port) ->
     [{server, ct:get_config({hosts, mim, domain})},
      {host, ct:get_config({hosts, mim, domain})},
      {password, <<"secret">>},
