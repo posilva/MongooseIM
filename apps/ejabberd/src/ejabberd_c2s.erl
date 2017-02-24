@@ -897,9 +897,10 @@ session_established({xmlstreamelement, El}, StateData) ->
                                               from_jid => FromJID,
                                               to_jid => ToJID,
                                               to => To}),
-            case mod_amp:check_packet(Acc, initial_check) of
+            Acc1 = mod_amp:check_packet(Acc, initial_check),
+            case mongoose_acc:get(amp_check_result, Acc1, ok) of
                 drop -> fsm_next_state(session_established, NewState);
-                Acc1 -> process_outgoing_stanza(Acc1, NewState)
+                _ -> process_outgoing_stanza(Acc1, NewState)
             end
     end;
 
