@@ -45,20 +45,45 @@ stop(Host) ->
 
 %% Business API
 
--spec check_packet(exml:element(), amp_event()) -> exml:element() | drop.
+-spec check_packet(mongoose_acc:t() | exml:element(), amp_event()) ->
+    mongoose_acc:t() | exml:element() | drop.
 check_packet(Packet = #xmlel{attrs = Attrs}, Event) ->
+    % it is called this way only from ejabberd_c2s:send_and_maybe_buffer_stanza/3, line 1666
+    % maybe Paweł Chrząszcz knows why and can advise what to do about it
+    ?DEPRECATED,
     case xml:get_attr(<<"from">>, Attrs) of
         {value, From} ->
             check_packet(Packet, jid:from_binary(From), Event);
         _ ->
             Packet
+    end;
+check_packet(Acc, Event) ->
+    Res = check_packet(mongoose_acc:get(element, Acc), mongoose_acc:get(from_jid, Acc), Event),
+    case Res of
+        drop -> drop;
+        _ ->
+            mongoose_acc:put(element, Res, Acc)
     end.
 
--spec check_packet(exml:element(), jid(), amp_event()) -> exml:element() | drop.
+-spec check_packet(exml:element()|mongoose_acc:t(), jid(), amp_event()) ->
+    exml:element() | mongoose_acc:t() | drop.
 check_packet(Packet = #xmlel{name = <<"message">>}, #jid{lserver = Host} = From, Event) ->
     ejabberd_hooks:run_fold(amp_check_packet, Host, Packet, [From, Event]);
-check_packet(Packet, _, _) ->
-    Packet.
+check_packet(Packet = #xmlel{}, _, _) ->
+    Packet;
+check_packet(Acc, From, Event) ->
+    case mongoose_acc:get(name, Acc) of
+        <<"message">> ->
+            El = check_packet(mongoose_acc:get(element, Acc), From, Event),
+            case El of
+                drop ->
+                    drop;
+                _ ->
+                    mongoose_acc:put(element, El, Acc)
+            end;
+        _ ->
+            Acc
+    end.
 
 add_local_features(Acc, _From, _To, ?NS_AMP, _Lang) ->
     Features = result_or(Acc, []) ++ amp_features(),
