@@ -130,10 +130,10 @@ start_link() ->
 route(From, To, Packet) ->
     case (catch do_route(From, To, Packet)) of
         {'EXIT', Reason} ->
-            ?ERROR_MSG("error when routing from=~ts to=~ts in module=~p, reason=~p, "
-                       "packet=~ts, stack_trace=~p",
+            ?ERROR_MSG("error when routing from=~ts to=~ts in module=~p~n~nreason=~p~n~n"
+                       "packet=~ts~n~nstack_trace=~p~n",
                        [jid:to_binary(From), jid:to_binary(To),
-                        ?MODULE, Reason, exml:to_binary(Packet),
+                        ?MODULE, Reason, mongoose_acc:to_binary(Packet),
                         erlang:get_stacktrace()]);
         _ -> ok
     end.
@@ -586,7 +586,7 @@ do_route(From, To, Packet) ->
     ?DEBUG("session manager~n\tfrom ~p~n\tto ~p~n\tpacket ~P~n",
            [From, To, Packet, 8]),
     #jid{ luser = LUser, lserver = LServer, lresource = LResource} = To,
-    #xmlel{name = Name, attrs = Attrs} = Packet,
+    #xmlel{name = Name, attrs = Attrs} = mongoose_acc:get(element, Packet),
     case LResource of
         <<>> ->
             do_route_no_resource(Name, xml:get_attr_s(<<"type">>, Attrs),
