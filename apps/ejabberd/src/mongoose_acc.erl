@@ -42,7 +42,7 @@ terminate(M, _F, _L) ->
 
 terminate(M, received, _F, _L) ->
 %%    ?ERROR_MSG("ZZZ terminate accumulator ~p ~p", [F, L]),
-    get(to_send, M, get(element, M)).
+    get(to_send, M, get(element, M, undefined)).
 
 dump(Acc) ->
     dump(Acc, lists:sort(maps:keys(Acc))).

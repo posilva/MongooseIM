@@ -127,6 +127,26 @@ start_link() ->
       From :: ejabberd:jid(),
       To :: ejabberd:jid(),
       Packet :: jlib:xmlel() | ejabberd_c2s:broadcast().
+route(From, To, #xmlel{} = Packet) ->
+    ?ERROR_MSG("Deprecated - it should be Acc: ~p", [Packet]),
+    route(From, To, mongoose_acc:from_element(Packet));
+route(From, To, {broadcast, Payload} = Packet) ->
+    NPayload = case mongoose_acc:is_acc(Payload) of
+                   false ->
+                       ?ERROR_MSG("Deprecated broadcast - it should be Acc: ~p", [Packet]),
+                       mongoose_acc:from_kv(to_send, Payload);
+                   true ->
+                       Payload
+               end,
+    case (catch do_route(From, To, {broadcast, NPayload})) of
+        {'EXIT', Reason} ->
+            ?ERROR_MSG("error when routing from=~ts to=~ts in module=~p~n~nreason=~p~n~n"
+            "packet=~ts~n~nstack_trace=~p~n",
+                [jid:to_binary(From), jid:to_binary(To),
+                    ?MODULE, Reason, mongoose_acc:to_binary(Packet),
+                    erlang:get_stacktrace()]);
+        Acc -> Acc
+    end;
 route(From, To, Packet) ->
     case (catch do_route(From, To, Packet)) of
         {'EXIT', Reason} ->
@@ -135,7 +155,7 @@ route(From, To, Packet) ->
                        [jid:to_binary(From), jid:to_binary(To),
                         ?MODULE, Reason, mongoose_acc:to_binary(Packet),
                         erlang:get_stacktrace()]);
-        _ -> ok
+        Acc -> Acc
     end.
 
 -spec open_session(SID, User, Server, Resource, Info) -> ok when
@@ -561,7 +581,7 @@ do_filter(From, To, Packet) ->
       From :: ejabberd:jid(),
       To :: ejabberd:jid(),
       Packet :: jlib:xmlel() | ejabberd_c2s:broadcast().
-do_route(From, To, {broadcast, _} = Broadcast) ->
+do_route(From, To, {broadcast, Acc} = Broadcast) ->
     ?DEBUG("from=~p, to=~p, broadcast=~p", [From, To, Broadcast]),
     #jid{ luser = LUser, lserver = LServer, lresource = LResource} = To,
     case LResource of
@@ -581,7 +601,8 @@ do_route(From, To, {broadcast, _} = Broadcast) ->
                     ?DEBUG("sending to process ~p~n", [Pid]),
                     Pid ! Broadcast
             end
-    end;
+    end,
+    mongoose_acc:remove(to_send, Acc);
 do_route(From, To, Packet) ->
     ?DEBUG("session manager~n\tfrom ~p~n\tto ~p~n\tpacket ~P~n",
            [From, To, Packet, 8]),
@@ -602,7 +623,8 @@ do_route(From, To, Packet) ->
                     ?DEBUG("sending to process ~p~n", [Pid]),
                     Pid ! {route, From, To, Packet}
             end
-    end.
+    end,
+    mongoose_acc:remove(to_send, Packet).
 
 -spec do_route_no_resource_presence_prv(From, To, Packet, Type, Reason) -> boolean() when
       From :: ejabberd:jid(),

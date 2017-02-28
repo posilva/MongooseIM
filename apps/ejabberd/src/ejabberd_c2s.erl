@@ -1179,7 +1179,7 @@ maybe_terminate(Acc) ->
             ?ERROR_MSG("ok: ~p", [ok]),
             mongoose_acc:terminate(Acc, received, ?FILE, ?LINE);
         false ->
-            ?ERROR_MSG("Hey, it should be accumulator here!", []),
+            ?ERROR_MSG("Hey, it should be accumulator here! ~p", [Acc]),
             Acc
     end.
 
@@ -2273,8 +2273,8 @@ process_privacy_iq(Acc, To, StateData) ->
                 {error, Error} ->
                     IQ#iq{type = error, sub_el = [SubEl, Error]}
             end,
-    ejabberd_router:route(To, From, jlib:iq_to_xml(IQRes)),
-    {Acc2, NewStateData}.
+    Acc3 = ejabberd_router:route(To, From, mongoose_acc:put(to_send, jlib:iq_to_xml(IQRes), Acc2)),
+    {Acc3, NewStateData}.
 
 -spec process_privacy_iq(Acc :: mongoose_acc:t(),
                          Type :: get | set,
