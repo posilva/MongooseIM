@@ -264,7 +264,8 @@ get_muc_service({result, Nodes}, _From, #jid{lserver = LServer} = _To, <<"">>, _
 get_muc_service(Acc, _From, _To, _Node, _Lang) ->
     Acc.
 
--spec remove_user(Acc :: map(), User :: binary(), Server :: binary()) -> ok.
+-spec remove_user(Acc :: mongoose_acc:t(), User :: binary(), Server :: binary()) ->
+    mongoose_acc:t().
 remove_user(Acc, User, Server) ->
     LUser = jid:nodeprep(User),
     LServer = jid:nameprep(Server),
@@ -272,7 +273,8 @@ remove_user(Acc, User, Server) ->
     Version = mod_muc_light_utils:bin_ts(),
     case mod_muc_light_db_backend:remove_user(UserUS, Version) of
         {error, _} = Err ->
-            ?ERROR_MSG("hook=remove_user, error=~p", [Err]);
+            ?ERROR_MSG("hook=remove_user, error=~p", [Err]),
+            Acc;
         AffectedRooms ->
             bcast_removed_user(UserUS, AffectedRooms, Version),
             maybe_forget_rooms(AffectedRooms),

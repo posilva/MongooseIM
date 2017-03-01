@@ -95,7 +95,7 @@ start_link() ->
 %% the next module in sequence.
 -spec route(From   :: ejabberd:jid(),
     To     :: ejabberd:jid(),
-    Packet :: mongoose_acc:t()) -> mongoose_acc:t().
+    Packet :: mongoose_acc:t()|jlib:xmlel()) -> mongoose_acc:t().
 route(From, To, #xmlel{} = Packet) ->
     ?ERROR_MSG("Deprecated - it should be Acc: ~p", [Packet]),
     route(From, To, mongoose_acc:from_element(Packet));

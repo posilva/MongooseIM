@@ -1176,7 +1176,7 @@ handle_info(Info, StateName, StateData) ->
 maybe_terminate(Acc) ->
     case mongoose_acc:is_acc(Acc) of
         true -> 
-            ?ERROR_MSG("ok: ~p", [ok]),
+%%            ?ERROR_MSG("ok: ~p", [ok]),
             mongoose_acc:terminate(Acc, received, ?FILE, ?LINE);
         false ->
             ?ERROR_MSG("Hey, it should be accumulator here! ~p", [Acc]),

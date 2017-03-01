@@ -123,10 +123,11 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, [], []).
 
 
--spec route(From, To, Packet) -> ok when
+-spec route(From, To, Packet) -> Acc when
       From :: ejabberd:jid(),
       To :: ejabberd:jid(),
-      Packet :: jlib:xmlel() | ejabberd_c2s:broadcast().
+      Packet :: jlib:xmlel() | mongoose_acc:t()| ejabberd_c2s:broadcast(),
+      Acc :: mongoose_acc:t().
 route(From, To, #xmlel{} = Packet) ->
     ?ERROR_MSG("Deprecated - it should be Acc: ~p", [Packet]),
     route(From, To, mongoose_acc:from_element(Packet));
@@ -257,14 +258,12 @@ bounce_offline_message(#jid{server = Server} = From, To, Packet) ->
     ejabberd_router:route(To, From, Err),
     stop.
 
-%% #rh
--spec disconnect_removed_user(map(), User :: ejabberd:user(),
-                              Server :: ejabberd:server()) -> map().
+-spec disconnect_removed_user(mongoose_acc:t(), User :: ejabberd:user(),
+                              Server :: ejabberd:server()) -> mongoose_acc:t().
 disconnect_removed_user(Acc, User, Server) ->
     ejabberd_sm:route(jid:make(<<>>, <<>>, <<>>),
                       jid:make(User, Server, <<>>),
-                      {broadcast, {exit, <<"User removed">>}}),
-    Acc.
+                      {broadcast, mongoose_acc:put(to_send, {exit, <<"User removed">>}, Acc)}).
 
 
 -spec get_user_resources(User :: ejabberd:user(), Server :: ejabberd:server()) -> [binary()].
