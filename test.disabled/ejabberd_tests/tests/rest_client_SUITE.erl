@@ -31,7 +31,7 @@ test_cases() ->
      ].
 
 init_per_suite(C) ->
-    application:ensure_all_started(shotgun),
+    shotgun:start(),
     Host = ct:get_config({hosts, mim, domain}),
     MUCLightHost = <<"muclight.", Host/binary>>,
     C1 = rest_helper:maybe_enable_mam(mam_helper:backend(), Host, C),
