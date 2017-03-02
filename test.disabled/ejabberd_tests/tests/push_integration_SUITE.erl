@@ -60,15 +60,15 @@ suite() ->
 %%--------------------------------------------------------------------
 
 connect_to(fcm) ->
-    FCMPort = os:getenv("FCM_MOCK_PORT", ?DEFAULT_FCM_MOCK_PORT),
+    FCMPort = getenv("FCM_MOCK_PORT", ?DEFAULT_FCM_MOCK_PORT),
     {ok, FCM} = shotgun:open("localhost", list_to_integer(FCMPort), https),
     FCM;
 connect_to(apns) ->
-    APNSPort = os:getenv("APNS_MOCK_PORT", ?DEFAULT_APNS_MOCK_PORT),
+    APNSPort = getenv("APNS_MOCK_PORT", ?DEFAULT_APNS_MOCK_PORT),
     {ok, APNS} = shotgun:open("localhost", list_to_integer(APNSPort), https),
     APNS;
 connect_to(mongoose_push) ->
-    PushPort = os:getenv("MONGOOSE_PUSH_PORT", ?DEFAULT_MONGOOSE_PUSH_PORT),
+    PushPort = getenv("MONGOOSE_PUSH_PORT", ?DEFAULT_MONGOOSE_PUSH_PORT),
     {ok, Push} = shotgun:open("localhost", list_to_integer(PushPort), https),
     Push.
 
@@ -85,7 +85,7 @@ init_per_suite(Config0) ->
 
     rpc(mongoose_http_client, start, [[]]),
     rpc(mongoose_http_client, start_pool, [mongoose_push_http, [
-        {server, "https://localhost:" ++ os:getenv("MONGOOSE_PUSH_PORT",
+        {server, "https://localhost:" ++ getenv("MONGOOSE_PUSH_PORT",
                                                    ?DEFAULT_MONGOOSE_PUSH_PORT)}
     ]]),
 
@@ -493,6 +493,14 @@ pubsub_node_name() ->
 
 pubsub_node() ->
     {node_addr(), pubsub_node_name()}.
+
+getenv(VarName, Default) ->
+    case os:getenv(VarName) of
+        false ->
+            Default;
+        Value ->
+            Value
+    end.
 
 required_modules() ->
     [
