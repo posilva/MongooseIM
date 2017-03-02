@@ -69,10 +69,12 @@ is_acc(A) when is_map(A) ->
 is_acc(_) ->
     false.
 
+%% this is a temporary hack - right now processes receive accumulators and stanzas, it is all
+%% mixed up so we have to cater for this
 -spec to_element(xmlel() | t()) -> xmlel().
 to_element(A) ->
     case is_acc(A) of
-        true -> mongoose_acc:get(element, A);
+        true -> get(to_send, A, get(element, A, undefined));
         false -> A
     end.
 

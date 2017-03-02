@@ -414,8 +414,7 @@ do_route(From, To, Packet) ->
                     ok
             end;
         true ->
-            #xmlel{attrs = Attrs} = Packet,
-            case xml:get_attr_s(<<"type">>, Attrs) of
+            case mongoose_acc:get(type, Packet) of
                 <<"error">> -> ok;
                 <<"result">> -> ok;
                 _ ->

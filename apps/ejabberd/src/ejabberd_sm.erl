@@ -129,12 +129,12 @@ start_link() ->
       Packet :: jlib:xmlel() | mongoose_acc:t()| ejabberd_c2s:broadcast(),
       Acc :: mongoose_acc:t().
 route(From, To, #xmlel{} = Packet) ->
-    ?ERROR_MSG("Deprecated - it should be Acc: ~p", [Packet]),
+%%    ?ERROR_MSG("Deprecated - it should be Acc: ~p", [Packet]),
     route(From, To, mongoose_acc:from_element(Packet));
 route(From, To, {broadcast, Payload} = Packet) ->
     NPayload = case mongoose_acc:is_acc(Payload) of
                    false ->
-                       ?ERROR_MSG("Deprecated broadcast - it should be Acc: ~p", [Packet]),
+%%                       ?ERROR_MSG("Deprecated broadcast - it should be Acc: ~p", [Packet]),
                        mongoose_acc:from_kv(to_send, Payload);
                    true ->
                        Payload

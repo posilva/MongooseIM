@@ -178,8 +178,10 @@ stop(Host) ->
 %% Routing
 %%====================================================================
 
--spec process_packet(From :: jid(), To :: jid(), Packet :: exml:element(), Extra :: any()) -> any().
-process_packet(From, To, Packet, _Extra) ->
+-spec process_packet(From :: jid(), To :: jid(), Acc :: mongoose_acc:t(), Extra :: any()) ->
+    any().
+process_packet(From, To, Acc, _Extra) ->
+    Packet = mongoose_acc:to_element(Acc),
     process_decoded_packet(From, To, mod_muc_light_codec_backend:decode(From, To, Packet), Packet).
 
 -spec process_decoded_packet(From :: ejabberd:jid(), To :: ejabberd:jid(),
@@ -202,11 +204,13 @@ process_decoded_packet(From, To, {ok, {_, #blocking{}} = Blocking}, OrigPacket) 
     RouteFun = fun ejabberd_router:route/3,
     case gen_mod:get_module_opt_by_subhost(To#jid.lserver, ?MODULE, blocking, ?DEFAULT_BLOCKING) of
         true ->
-            case handle_blocking(From, To, Blocking) of
-                ok ->
+            ?TEMPORARY,
+            Res = handle_blocking(From, To, Blocking),
+            case (mongoose_acc:is_acc(Res) or (Res == ok)) of
+                true ->
                     ok;
-                Error ->
-                    mod_muc_light_codec_backend:encode_error(Error, From, To, OrigPacket, RouteFun)
+                false ->
+                    mod_muc_light_codec_backend:encode_error(Res, From, To, OrigPacket, RouteFun)
             end;
         false -> mod_muc_light_codec_backend:encode_error(
                    {error, bad_request}, From, To, OrigPacket, fun ejabberd_router:route/3)
@@ -273,8 +277,7 @@ remove_user(Acc, User, Server) ->
     Version = mod_muc_light_utils:bin_ts(),
     case mod_muc_light_db_backend:remove_user(UserUS, Version) of
         {error, _} = Err ->
-            ?ERROR_MSG("hook=remove_user, error=~p", [Err]),
-            Acc;
+            ?ERROR_MSG("hook=remove_user, error=~p", [Err]);
         AffectedRooms ->
             bcast_removed_user(UserUS, AffectedRooms, Version),
             maybe_forget_rooms(AffectedRooms),
