@@ -116,7 +116,7 @@ process_blocking_iq_set(Type, Acc, LUser, LServer, CurrList, Usrs) ->
     end.
 
 -spec complete_iq_set(atom(), mongoose_acc:t(), term(), term(), term()) ->
-    {error, term()} | {result, list() | {result, list(), term()}}.
+    {mongoose_acc:t(), {error, term()} | {result, list() | {result, list(), term()}}}.
 complete_iq_set(blocking_command, Acc, _, _, {error, Reason}) ->
     {Acc, {error, Reason}};
 complete_iq_set(blocking_command, Acc, LUser, LServer, {ok, Changed, List, Type}) ->

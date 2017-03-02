@@ -1174,6 +1174,8 @@ handle_info(Info, StateName, StateData) ->
     handle_incoming_message(Info, StateName, StateData).
 
 maybe_terminate(Acc) ->
+    % instead of this, we will pass on the accumulator, only replacing
+    % 'element' with 'to_send', if present
     case mongoose_acc:is_acc(Acc) of
         true -> 
 %%            ?ERROR_MSG("ok: ~p", [ok]),
@@ -1591,8 +1593,9 @@ maybe_send_element_safe(State, El) ->
 
 %% @doc This is the termination point - from here stanza is sent to the user
 %% We sent the original stanza ('element') unless there is a different thing
-%% keyed 'to_send'
-send_element(StateData, #xmlel{} = El) ->
+% keyed 'to_send'
+-spec send_element(mongoose_acc:t() | state(), state() | xmlel()) -> mongoose_acc:t() | ok.
+send_element(#state{} = StateData, #xmlel{} = El) ->
     ?DEPRECATED,
     send_element(mongoose_acc:from_element(El), StateData),
     ok;
@@ -3117,6 +3120,7 @@ defer_resource_constraint_check(#state{stream_mgmt_constraint_check_tref = undef
 defer_resource_constraint_check(State)->
     State.
 
+-spec sasl_success_stanza(any()) -> xmlel().
 sasl_success_stanza(ServerOut) ->
     C = case ServerOut of
             undefined -> [];
@@ -3126,6 +3130,7 @@ sasl_success_stanza(ServerOut) ->
            attrs = [{<<"xmlns">>, ?NS_SASL}],
            children = C}.
 
+-spec sasl_failure_stanza(any()) -> xmlel().
 sasl_failure_stanza(Error) when is_binary(Error) ->
     sasl_failure_stanza({Error, undefined});
 sasl_failure_stanza({Error, Text}) ->
@@ -3138,6 +3143,7 @@ maybe_text_tag(Text) ->
     [#xmlel{name = <<"text">>,
             children = [#xmlcdata{content = Text}]}].
 
+-spec sasl_challenge_stanza(any()) -> xmlel().
 sasl_challenge_stanza(Challenge) ->
     #xmlel{name = <<"challenge">>,
            attrs = [{<<"xmlns">>, ?NS_SASL}],
